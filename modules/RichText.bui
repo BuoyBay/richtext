@@ -1,0 +1,79 @@
+Public Function RichTextSupported() As Boolean
+    #If TargetMac Then
+        Return True
+    #Else
+        Return False
+    #End If
+End Function
+
+#If TargetMac Then
+    Private Declare Function NativeClass Lib "objc" Alias "objc_getClass" (name As String) As Ptr
+    Private Declare Function Allocate Lib "Foundation" Selector "alloc" (cls As Ptr) As Ptr
+    Private Declare Function InitObject Lib "Foundation" Selector "init" (object As Ptr) As Ptr
+    Private Declare Function NewPool Lib "Foundation" Selector "new" (cls As Ptr) As Ptr
+    Private Declare Sub DrainPool Lib "Foundation" Selector "drain" (pool As Ptr)
+    Private Declare Sub ReleaseObject Lib "CoreFoundation" Alias "CFRelease" (value As Ptr)
+    Private Function NativeText(value As Ptr) As String
+        If value = Nil Then Return ""
+        Return CType(CType(value, CFStringRef), String)
+    End Function
+    Private Declare Function CreateData Lib "CoreFoundation" Alias "CFDataCreate" (allocator As Ptr, data As Ptr, length As Integer) As Ptr
+    Private Declare Function DataLength Lib "CoreFoundation" Alias "CFDataGetLength" (data As Ptr) As Integer
+    Private Declare Function DataBytes Lib "CoreFoundation" Alias "CFDataGetBytePtr" (data As Ptr) As Ptr
+    Private Function CopyData(data As Ptr) As Bytes
+        If data = Nil Then Throw New Exception("The native operation returned no data")
+        Dim outputValue As New Bytes()
+        outputValue.Append(DataBytes(data), DataLength(data))
+        Return outputValue
+    End Function
+    Sequential Structure TextRange
+        Location As Integer
+        Length As Integer
+    End Structure
+    Private Declare Function AttributedText Lib "AppKit" Selector "initWithString:" (object As Ptr, text As Ptr) As Ptr
+    Private Declare Function AttributedRTF Lib "AppKit" Selector "initWithRTF:documentAttributes:" (object As Ptr, data As Ptr, attributes As Ptr) As Ptr
+    Private Declare Function TextLength Lib "Foundation" Selector "length" (object As Ptr) As Integer
+    Private Declare Function TextString Lib "Foundation" Selector "string" (object As Ptr) As Ptr
+    Private Declare Function ExportRTF Lib "AppKit" Selector "RTFFromRange:documentAttributes:" (object As Ptr, range As TextRange, attributes As Ptr) As Ptr
+#End If
+
+
+Public Function EncodeRTF(text As String) As Bytes
+    #If TargetMac Then
+        Dim pool As Ptr = NewPool(NativeClass("NSAutoreleasePool"))
+        Dim nativeText As CFStringRef = CType(text, CFStringRef)
+        Dim value As Ptr = Nil
+        Try
+            value = AttributedText(Allocate(NativeClass("NSAttributedString")), nativeText)
+            Dim range As TextRange = { Location: 0, Length: TextLength(value) }
+            Return CopyData(ExportRTF(value, range, Nil))
+        Finally
+            If value <> Nil Then ReleaseObject(value)
+            ReleaseObject(nativeText)
+            DrainPool(pool)
+        End Try
+    #Else
+        Throw New UnsupportedOperationException("RTF conversion requires macOS")
+    #End If
+End Function
+
+Public Function DecodeRTF(data As Bytes) As String
+    If data = Nil Then Throw New InvalidArgumentException("RTF data is required")
+    If data.Count = 0 Then Throw New InvalidArgumentException("RTF data is empty")
+    #If TargetMac Then
+        Dim pool As Ptr = NewPool(NativeClass("NSAutoreleasePool"))
+        Dim nativeData As Ptr = CreateData(Nil, data.DataPtr(), data.Count)
+        Dim value As Ptr = Nil
+        Try
+            value = AttributedRTF(Allocate(NativeClass("NSAttributedString")), nativeData, Nil)
+            If value = Nil Then Throw New InvalidArgumentException("Invalid RTF data")
+            Return NativeText(TextString(value))
+        Finally
+            If value <> Nil Then ReleaseObject(value)
+            ReleaseObject(nativeData)
+            DrainPool(pool)
+        End Try
+    #Else
+        Throw New UnsupportedOperationException("RTF conversion requires macOS")
+    #End If
+End Function
