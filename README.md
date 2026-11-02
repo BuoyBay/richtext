@@ -1,4 +1,4 @@
-# Native RTF encode / plain-text extract
+# RTF encode and extract
 
 `Import richtext`. `EncodeRTF(text)` returns native RTF bytes; `DecodeRTF(data)` returns plain Unicode text. Formatting is deliberately flattened on decode. RTFD, embedded files and HTML import are outside this package. No clipboard or files are changed. Invalid/empty data throws. NSAttributedString and data objects are released before each operation returns.
 
