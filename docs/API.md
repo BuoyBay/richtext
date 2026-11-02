@@ -4,8 +4,6 @@
 
 These native operations require macOS; `RichTextSupported()` returns False on Windows/Linux, and unsupported operations throw rather than silently emulating an Apple API. All six compiler targets are checked; native execution is verified on macOS arm64.
 
-Maintainers run the private validation suite before release. See the repository README for public build instructions.
-
 Inspired by [macoslib’s Cocoa examples](https://github.com/macoslib/macoslib); implemented independently against [Apple’s API](https://developer.apple.com/documentation/foundation/nsattributedstring).
 
 For portable attributed text and editing, use [StyledText](https://github.com/BuoyBay/styledtext/blob/main/docs/API.md). It preserves style runs through its own binary format and imports legacy Mac `styl` data. It does not currently connect styled documents to this package’s RTF converter or to core TextArea.
